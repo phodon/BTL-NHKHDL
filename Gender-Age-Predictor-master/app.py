@@ -161,75 +161,73 @@ def gen_frames():
 
 
 def gen_frames_photo(img_file):
-    faceProto = "opencv_face_detector.pbtxt"
-    faceModel = "opencv_face_detector_uint8.pb"
-    ageProto = "age_deploy.prototxt"
-    ageModel = "age_net.caffemodel"
-    genderProto = "gender_deploy.prototxt"
-    genderModel = "gender_net.caffemodel"
+    faceProto = "opencv_face_detector.pbtxt"  # Tệp prototxt cho mô hình nhận dạng khuôn mặt
+    faceModel = "opencv_face_detector_uint8.pb"  # Tệp caffeModel cho mô hình nhận dạng khuôn mặt
+    ageProto = "age_deploy.prototxt"  # Tệp prototxt cho mô hình nhận dạng tuổi tác
+    ageModel = "age_net.caffemodel"  # Tệp caffeModel cho mô hình nhận dạng tuổi tác
+    genderProto = "gender_deploy.prototxt"  # Tệp prototxt cho mô hình nhận dạng giới tính
+    genderModel = "gender_net.caffemodel"  # Tệp caffeModel cho mô hình nhận dạng giới tính
 
     MODEL_MEAN_VALUES = (78.4263377603, 87.7689143744, 114.895847746)
-    # Defining age range.
+    # Danh sách phạm vi tuổi tác
     ageList = ['(0-2)', '(4-6)', '(8-12)', '(15-20)',
-               '(25-32)', '(38-43)', '(48-53)', '(60-100)']
-    genderList = ['Male', 'Female']
+               '(25-32)', '(38-43)', '(48-53)', '(60-100)'] 
+    genderList = ['Male', 'Female'] # Danh sách giới tính
 
-    # LOAD NETWORK
-    faceNet = cv2.dnn.readNet(faceModel, faceProto)
-    ageNet = cv2.dnn.readNet(ageModel, ageProto)
-    genderNet = cv2.dnn.readNet(genderModel, genderProto)
+    # LOAD NETWORK (Nạp mạng Neural)
+    faceNet = cv2.dnn.readNet(faceModel, faceProto)  # Đọc mô hình nhận dạng khuôn mặt
+    ageNet = cv2.dnn.readNet(ageModel, ageProto)  # Đọc mô hình nhận dạng tuổi tác
+    genderNet = cv2.dnn.readNet(genderModel, genderProto)  # Đọc mô hình nhận dạng giới tính
 
-# Open a video file or an image file or a camera stream
+# Mở 1 video hoặc 1 bức ảnh hoặc camera trực tiếp
 
     frame = cv2.cvtColor(img_file, cv2.COLOR_BGR2RGB)
-    #frame = img_file
-    #hasFrame, frame = img_file.read()
-    #ret, frame = cv2.imencode('.jpg', img_file)
-    #video = cv2.VideoCapture(img_file)
+    #img_file: biến đại diện cho hình ảnh đầu vào
+    #cv2.COLOR_BGR2RGB: chỉ định chuyển đổi từ không gian màu BGR (Blue-Green-Red) sang không gian màu RGB (Red-Green-Blue)
+    #cv2.cvtColor(): Đây là một hàm trong thư viện OpenCV để thực hiện phép chuyển đổi không gian màu của hình ảnh
+
+    # Vùng đệm (padding) cho khuôn mặt
     padding = 20
     while cv2.waitKey(1) < 0:
-        # Read frame
-        #hasFrame, frame = video.read()
-        # if not hasFrame:
-        # cv2.waitKey()
-        # break
+        # Đọc khung hình từ video
 
-        # It will detect the no. of faces in the frame
+        # Nhận dạng từ khuôn mặt trong hình
         resultImg, faceBoxes = highlightFace(faceNet, frame)
-        if not faceBoxes:   # If no faces are detected
-            print("No face detected")   # Then it will print this message
+        if not faceBoxes:   # Không phát hiện khuôn mặt
+            print("No face detected")   
 
-        for faceBox in faceBoxes:
-            # print facebox
-            face = frame[max(0, faceBox[1]-padding):   # Face info is stored in this variable
-                         min(faceBox[3]+padding, frame.shape[0]-1), max(0, faceBox[0]-padding):min(faceBox[2]+padding, frame.shape[1]-1)]
+       for faceBox in faceBoxes:
+            # Cắt khung hình khuôn mặt từ khung hình gốc
+            face = frame[max(0, faceBox[1] - padding):
+                         min(faceBox[3] + padding, frame.shape[0] - 1),
+                         max(0, faceBox[0] - padding):
+                         min(faceBox[2] + padding, frame.shape[1] - 1)]
 
-        # The dnn.blobFromImage takes care of pre-processing
-        # which includes setting the blob  dimensions and normalization.
+        # Tạo một blob từ hình ảnh khuôn mặt để chuẩn bị cho việc nhận dạng giới tính và tuổi tác
             blob = cv2.dnn.blobFromImage(
                 face, 1.0, (227, 227), MODEL_MEAN_VALUES, swapRB=False)
             genderNet.setInput(blob)
-        # genderNet.forward method will detect the gender of each face detected
+        # Dự đoán giới tính của khuôn mặt
             genderPreds = genderNet.forward()
             gender = genderList[genderPreds[0].argmax()]
-            print(f'Gender: {gender}')  # print the gender in the console
+            print(f'Gender: {gender}')  # In giới tính lên console
 
             ageNet.setInput(blob)
-        # ageNet.forward method will detect the age of the face detected
+        # Dự đoán số tuổi của khuôn mặt
             agePreds = ageNet.forward()
             age = ageList[agePreds[0].argmax()]
-            print(f'Age: {age[1:-1]} years')    # print the age in the console
+            print(f'Age: {age[1:-1]} years')    # In số tuổi lên console
 
-        # Show the output frame
+        # Hiển thị văn bản bên trên hình ảnh với thông tin giới tính và tuổi tác
             cv2.putText(resultImg, f'{gender}, {age}', (
                 faceBox[0], faceBox[1]-10), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 2, cv2.LINE_AA)
-        #cv2.imshow("Detecting age and gender", resultImg)
+        
 
             if resultImg is None:
                 continue
 
             ret, encodedImg = cv2.imencode('.jpg', resultImg)
-            #resultImg = buffer.tobytes().
+            # Chuyển đổi hình ảnh kết quả sang định dạng JPEG và gửi nó đi
             return (b'--frame\r\n'
                     b'Content-Type: image/jpeg\r\n\r\n' + bytearray(encodedImg) + b'\r\n')
 
